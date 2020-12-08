@@ -11,7 +11,8 @@ var {
 
 router.post('/applicant', function(req, res, next) {
   var user = req.body.user;
-  createOnfidoApplicant(user.given_name, user.family_name, user.email).then((response) => {
+  req.session.user = user;
+  createOnfidoApplicant(user.firstName, user.lastName, user.email).then((response) => {
     updateOktaUser(user.email, response.id, '').then((updated) => {
       return res.status(200).json({ applicantId: response.id });
     }).catch((error) => {
