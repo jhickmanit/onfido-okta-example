@@ -52,14 +52,14 @@ const createOnfidoApplicant = (firstName, lastName, email) => {
 
 /// creates an Onfido SDK Token for a specific applicant
 const createOnfidoSDKToken = (applicantId) => {
- return onfidoClient.sdkToken.generate({ applicantId, referrer: '*://*/*'}).then((response) => {
+ return onfidoClient.sdkToken.generate({ applicantId: applicantId, referrer: '*://*/*'}).then((response) => {
    return response;
  });
 };
 
 /// creates a Onfido check for an applicant with default document and facial_similarity_photo reports
 const createOnfidoCheck = (applicantId) => {
- return onfidoClient.check.create({ applicantId, reportNames: ['document, facial_similarity_photo']}).then((response) => {
+ return onfidoClient.check.create({ applicantId, reportNames: ['document', 'facial_similarity_photo']}).then((response) => {
    return response;
  });
 };

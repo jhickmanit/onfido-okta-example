@@ -25,7 +25,7 @@ router.post('/applicant', function(req, res, next) {
 
 router.post('/sdk', function(req, res, next) {
   var applicant = req.body.applicantId;
-  createOnfidoSDKToken(applicant).then((response) => {
+  createOnfidoSDKToken(applicant.applicantId).then((response) => {
     return res.status(200).json({ sdkToken: response });
   }).catch((error) => {
     return res.status(500).json({ isError: true, message: error });
@@ -34,9 +34,9 @@ router.post('/sdk', function(req, res, next) {
 
 router.post('/check', function(req, res, next) {
   var applicant = req.body.applicantId;
-  createOnfidoCheck(applicant).then((response) => {
+  createOnfidoCheck(applicant.applicantId).then((response) => {
     return res.status(200).json({ checkStatus: response.status, id: response.id });
-  }).check((error) => {
+  }).catch((error) => {
     return res.status(500).json({ isError: true, message: error });
   });
 });

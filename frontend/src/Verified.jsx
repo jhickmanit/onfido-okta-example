@@ -27,13 +27,21 @@ const Verified = () => {
     history.push('/idv');
   };
 
-  if (!userInfo.onfidoIdvStatus || userInfo.onfidoIdvStatus === '') {
+  if (userInfo === undefined || userInfo === null) {
+    return (
+      <div>
+        <p>Fetching user profile...</p>
+      </div>
+    )
+  }
+
+  if (userInfo['onfidoIdvStatus'] === null || userInfo['onfidoIdvStatus'] === undefined || userInfo['onfidoIdvStatus'] !== 'clear') {
     return (
       <div>
         <Header as="h1">
           Not Verified!
         </Header>
-        <p> Your identity has not been verified! You must verify your identity before you can access this page.</p>
+        <p> Your identity has not been verified or failed to be verified! You must verify your identity before you can access this page, click below to try again.</p>
         <Button id="idv-button" primary onClick={verify}>Verify Identity</Button>
       </div>
     )

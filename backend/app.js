@@ -3,6 +3,7 @@ var path = require('path');
 var cookieParser = require('cookie-parser');
 var logger = require('morgan');
 var session = require('express-session');
+var  cors = require('cors');
 
 var indexRouter = require('./routes/index');
 
@@ -16,12 +17,19 @@ const sess = {
   cookie: { secure: false, httpOnly: false },
 };
 
+const corsOptions = {
+  origin: 'http://localhost:3000',
+  optionsSuccessStatus: 200,
+  credentials: true,
+};
+
 app.use(logger('dev'));
 app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
+app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use(session(sess));
 app.use(express.static(path.join(__dirname, 'public')));
+app.use(cors(corsOptions));
 
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));

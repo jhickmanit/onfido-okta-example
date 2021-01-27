@@ -17,7 +17,7 @@ NodeJS Development Environment (NodeJS 12+)
 Setting | Value
 ------------ | -------------
 App Name | Onfido Sample App (must be unique)
-Login redirect URIs | http://localhost:3000/implicit/callback
+Login redirect URIs | http://localhost:3000/login/callback
 Logout redirect URIs | http://localhost:3000/login
 Allowed grant types | Authorization Code
 
@@ -38,6 +38,26 @@ Create the following profile attributes:
   - Data Type: string
   - Display Name: Onfido Applicant ID
   - Variable Name: onfidoApplicantId
+
+>Note: Once you have created the profile attributes above, make sure they are mapped to the application profile as well if it was created under the default Okta profile.
+
+### Add Custom Claim to Okta Authorization Server
+  1. Login to your Okta instance as an Admin and navigate to Security > API.
+  2. On the default Authorization server, click the "Edit" Icon.
+  3. Click on the Claims tab and select Add Claim.
+  4. Create the following claims:
+     1. onfidoApplicantId
+        * Name: onfidoApplicantId
+        * Include in token type: ID Token | Always
+        * Value type: Expression
+        * Value: user.onfidoApplicantId
+        * Include In: The following scopes - profile
+      2. onfidoIdvStatus
+        * Name: onfidoIdvStatus
+        * Include in token type: ID Token | Always
+        * Value type: Expression
+        * Value: user.onfidoIdvStatus
+        * Include In: The following scopes - profile
 
 ## Create Project Structure
 
@@ -92,7 +112,11 @@ mkdir services
 cd services
 touch api.js
 ````
-Open the newly created `api.js ` and we will create the following:
+Open the newly created `api.js ` and use the file in this repository to create the content. 
+
+A few notes on the api.js file:
+
+Pay note to the `process.env` variables in the Okta and Onfido Clients, they will be set in the .env file for the backend.
 ````javascript
 const okta = require('@okta/okta-sdk-nodejs');
 const onfido = require('@onfido/api');
@@ -106,14 +130,11 @@ const onfidoClient = new onfido.Onfido({
  apiToken: process.env.ONFIDO_TOKEN,
  region: onfido.Region.US,
 });
+````
 
-/// Gets an Okta user by login id or email
-const getOktaUser = (userId) => {
- return oktaClient.getUser(userId).then((response) => {
-   return response;
- });
-};
+Notice the updateOktaUser function in that it uses the partial update call. This is because we are only passing in specific values and don't want the left out values to be set to null.
 
+````javascript
 /// updates an Okta user with either the Onfido applicant id or the status of an IDV check
 const updateOktaUser = (userId, applicantId, idvStatus) => {
  const user = { profile: {} };
@@ -127,106 +148,14 @@ const updateOktaUser = (userId, applicantId, idvStatus) => {
    return response;
  });
 };
-
-/// gets an Okta user by their Onfido applicantId
-const getOktaUserByApplicant = async (applicantId) => {
-  let user;
-  await oktaClient.listUsers({ search: `profile.onfidoApplicantId eq "${applicantId}"` }).each((oktaUser) => {
-   if (oktaUser.profile.onfidoApplicantId === applicantId) {
-     user = oktaUser;
-   }
- });
- return user;
-};
- 
-/// creates an Onfido applicant based off a firstName, lastName, email
-const createOnfidoApplicant = (firstName, lastName, email) => {
- return onfidoClient.applicant.create({ firstName, lastName, email }).then((response) => {
-   return response;
- });
-};
-
-/// creates an Onfido SDK Token for a specific applicant
-const createOnfidoSDKToken = (applicantId) => {
- return onfidoClient.sdkToken.generate({ applicantId, referrer: '*://*/*'}).then((response) => {
-   return response;
- });
-};
-
-/// creates a Onfido check for an applicant with default document and facial_similarity_photo reports
-const createOnfidoCheck = (applicantId) => {
- return onfidoClient.check.create({ applicantId, reportNames: ['document, facial_similarity_photo']}).then((response) => {
-   return response;
- });
-};
- 
-/// gets the result of an Onfido check based on the check id
-const getOnfidoCheckResult = (checkId) => {
- return onfidoClient.check.find(checkId).then((response) => {
-   return response;
- });
-};
- 
-const services = {
- getOktaUser,
- updateOktaUser,
- getOktaUserByApplicant,
- createOnfidoApplicant,
- createOnfidoSDKToken,
- createOnfidoCheck,
- getOnfidoCheckResult
-};
- 
-module.exports = services;
 ````
 
 ### Creating the API Routes
-Move back to the main `backend` directory and open the `index.js`found in the routes directory. We will change this to be our default API routes for our front end. Replace the existing code with the following:
+Move back to the main `backend` directory and open the `index.js`found in the routes directory. Copy the `routes/index.js` file in this repository to overwrite the file.
+
+A note on the status route and the behavior here: this is not recommended for production. Onfido offers a webhook functionality to send an event when checks are complete. This should be used instead of the polling status behavior in this example.
 
 ````javascript
-var express = require('express');
-var router = express.Router();
-
-var { 
-  updateOktaUser,
-  createOnfidoApplicant,
-  createOnfidoSDKToken,
-  createOnfidoCheck,
-  getOnfidoCheckResult
-} = require('../services/api');
-
-router.post('/applicant', function(req, res, next) {
-  var user = req.body.user;
-  req.session.user = user;
-  createOnfidoApplicant(user.firstName, user.lastName, user.email).then((response) => {
-    updateOktaUser(user.email, response.id, '').then((updated) => {
-      return res.status(200).json({ applicantId: response.id });
-    }).catch((error) => {
-      return res.status(500).json({ isError: true, message: error });
-    });
-  }).catch((error) => {
-    return res.status(500).json({ isError: true, message: error });
-  });
-});
-
-router.post('/sdk', function(req, res, next) {
-  var applicant = req.body.applicantId;
-  createOnfidoSDKToken(applicant).then((response) => {
-    return res.status(200).json({ sdkToken: response });
-  }).catch((error) => {
-    return res.status(500).json({ isError: true, message: error });
-  });
-});
-
-router.post('/check', function(req, res, next) {
-  var applicant = req.body.applicantId;
-  createOnfidoCheck(applicant).then((response) => {
-    return res.status(200).json({ checkStatus: response.status, id: response.id });
-  }).check((error) => {
-    return res.status(500).json({ isError: true, message: error });
-  });
-});
-
 router.post('/status', function(req, res, next) {
   var checkId = req.body.checkId;
   getOnfidoCheckResult(checkId).then((response) => {
@@ -236,53 +165,18 @@ router.post('/status', function(req, res, next) {
   });
 });
 
-router.post('/update', function(req, res, next) {
-  var { user, checkResult } = req.body;
-  updateOktaUser(user.email, '', checkResult).then((response) => {
-    return res.status(200).json({ status: 'success'});
-  }).catch((error) => {
-    return res.status(500).json({ isError: true, message: error });
-  });
-});
-
-module.exports = router;
 ````
 
 ### Connecting the Pieces
-Finally we will connect the routes to our main express api services. Open the `app.js` in the root of the `backend`directory and replace with the following:
+Finally we will connect the routes to our main express api services. Open the `app.js` in the root of the `backend`directory and replace with the `app.js` found in this repository.
+
+One note here is the CORS setup. This is required to allow communication between this express layer and the react frontend. We use credentials = true here because we want to persist cookies (READ: session) between requests.
 ````javascript
-var express = require('express');
-var path = require('path');
-var cookieParser = require('cookie-parser');
-var logger = require('morgan');
-var session = require('express-session');
-
-var indexRouter = require('./routes/index');
-
-
-var app = express();
-
-const sess = {
-  secret: process.env.APP_SECRET_KEY,
-  resave: false,
-  saveUninitialized: true,
-  cookie: { secure: false, httpOnly: false },
+const corsOptions = {
+  origin: 'http://localhost:3000',
+  optionsSuccessStatus: 200,
+  credentials: true,
 };
-
-app.use(logger('dev'));
-app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
-app.use(cookieParser());
-app.use(session(sess));
-app.use(express.static(path.join(__dirname, 'public')));
-
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
-
-app.use('/api', indexRouter);
-
-module.exports = app;
 ````
 
 ### Environmental Variables
@@ -350,20 +244,24 @@ touch interval.js
 ````
 The Protected.jsx will be a page behind the Okta sign-in widget that shows needing to have a valid token from Okta to view. The Onfido.jsx will host the Onfido SDK for processing the IDV steps. The Verifying.jsx page will provide a status screen of the IDV process. In this example app, we are waiting for the result from Onfido, but in production we recommend using webhooks (documented here: [https://documentation.onfido.com/#webhooks](https://documentation.onfido.com/#webhooks)) instead. The Verified.jsx page will be the resource that is linked in the Protected.jsx that requires Onfido IDV to be completed to access. The callApi.js and interval.js are two helper functions we will use to simplify API calls and handle an interval for polling our API respectively. 
 
-The callApi.js is fairly straightforward, use the following code to create it:
+The callApi.js is fairly straightforward, simply copy it from this repository into the callApi.js file created above.
 
 ````javascript
 const callApi = async (method, url, path, data) => {
   const res = await fetch(url+path, {
     method,
     credentials: 'include',
+    body: JSON.stringify(data) || undefined,
     headers: {
       Accept: 'application/json',
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify(data) || undefined,
   });
-  return res.json();
+  if (res.ok) {
+    return res.json();
+  } else {
+    return res;
+  }
 }
 
 export default callApi;
@@ -396,107 +294,16 @@ function useInterval(callback, delay) {
 export default useInterval
 ````
 
-Use the following code for the Protected.jsx page:
+Copy the code in the repository for Protected.jsx, Home.jsx, Navbar.jsx, Onfido.jsx, Verified.jsx, and Verifying.jsx into their respective files.
+
+A few notes:
+
+On the Onfido.jsx file we setup the Onfido configuration like below:
 
 ````javascript
-import React, { useState, useEffect } from 'react';
-import { useOktaAuth } from '@okta/okta-react';
-import { useHistory } from 'react-router-dom';
-import { Header, Button } from 'semantic-ui-react';
-
-const Protected = () => {
-  const history = useHistory();
-  const { authState, oktaAuth } = useOktaAuth();
-  const [userInfo, setUserInfo] = useState(null);
-
-  useEffect(() => {
-    if (!authState.isAuthenticated) {
-      // When user isn't authenticated, forget any user info
-      setUserInfo(null);
-    } else {
-      oktaAuth.getUser().then((info) => {
-        setUserInfo(info);
-      });
-    }
-  }, [authState, oktaAuth]); // Update if authState changes
-
-  const verifyIdentity = () => {
-    history.push('/idv');
-  };
-
-  return (
-    <div>
-      <Header as="h1">
-        Authenticated to Protected Resource!
-      </Header>
-      <p>You have successfully logged into the protected resource. From here if you want to get access to advanced features, use the link below to verify your identity!</p>
-      <Button id="login-button" primary onClick={verifyIdentity}>Verify Identity</Button>
-    </div>
-  )
-};
-
-export default Protected
-````
-This page will contain a link to allow the user to verify their identity using Onfido IDV.
-
-Use the following code for the Onfido.jsx page:
-
-````javascript
-import React, { useState, useEffect } from 'react';
-import { Redirect } from 'react-router-dom';
-import { useOktaAuth } from '@okta/okta-react';
-import { useHistory } from 'react-router-dom';
-import { init } from 'onfido-sdk-ui';
-import callApi from './callApi';
-
-const createApplicant = async (email, firstName, lastName) => {
-  return await callApi('POST', process.env.REACT_APP_BACKEND_URL, '/api/applicant', { user: { firstName: firstName, lastName: lastName, email: email } }).then(result => {
-    return result;
-  });
-};
-
-const getSDKToken = async (applicantId) => {
-  return await callApi('POST', process.env.REACT_APP_BACKEND_URL, '/api/sdk', {applicantId: applicantId}).then(result => {
-    return result;
-  });
-};
-
-const Onfido = () => {
-  const { authState, oktaAuth } = useOktaAuth();
-  const [userInfo, setUserInfo] = useState(null);
-
-  useEffect(() => {
-    if (!authState.isAuthenticated) {
-      // When user isn't authenticated, forget any user info
-      setUserInfo(null);
-    } else {
-      oktaAuth.getUser().then((info) => {
-        setUserInfo(info);
-      });
-    }
-  }, [authState, oktaAuth]); // Update if authState changes
-
-  const [applicantId, setApplicantId] = useState(null);
-  useEffect(() => {
-    let applicantId;
-    (async function asyncFetchApplicant() {
-      applicantId = await createApplicant(userInfo.given_name, userInfo.family_name, userInfo.email);
-      setApplicantId(applicantId);
-    })();
-  });
-
-  const [sdkToken, setSDKToken] = useState(null);
-  useEffect(() => {
-    let sdkToken;
-    (async function asyncFetchSDKToken() {
-      sdkToken = await getSDKToken(applicantId);
-      setSDKToken(sdkToken);
-    })();
-  });
-
-  const [handler, setHandler] = useState(null);
-  setOnfidoOptions = (sdkToken) => {
-    return {
+const initOnfido = async (sdkToken) => {
+    setLoading(true)
+    const instance = init({
       token: sdkToken,
       containerId: 'onfido-mount',
       useModel: false,
@@ -543,205 +350,13 @@ const Onfido = () => {
       onError: (error) => {
         setHandler({ error: error, complete: false, documentData: undefined });
       }
-    };
-  };
-
-  if (sdkToken === '') {
-    return (
-      <div>
-        <p>Fetching user profile...</p>
-      </div>
-    );
-  };
-
-  if (!handler.complete) {
-    if (handler.error !== undefined) {
-      return (
-        <div>
-          <p> Error! You have encountered an unexpected error!</p>
-          <p> {handler.error} </p>
-        </div>
-      );
-    } else {
-      init(setOnfidoOptions(sdkToken));
-      return (
-        <div id="onfido-mount" style={{ display: 'flex'}}></div>
-      );
-    }
-  } else {
-    return <Redirect to={{ pathname: '/verifying', state: { applicant: applicantId, data: documentData }}} />
-  };
-};
-
-export default Onfido
-````
-
-Lots to unpack here! First we need to create an applicant with Onfido. We will do so with the information provided from the Okta id_token and update the Okta user with the generated Onfido Applicant ID. Once we have the applicant created, we need an SDK token, which we use for the Onfido WebSDK to handle the API calls that it makes in a secure way. 
-
-The SDK’s options are set using a function setOnfidoOptions. These can be configured using the documentation found here: [https://github.com/onfido/onfido-sdk-ui#customising-the-sdk](https://github.com/onfido/onfido-sdk-ui#customising-the-sdk
-)
-
-
-Next we will use the useInterval function to create a page that polls of the Onfido IDV status in the Verifying.jsx page:
-
-````javascript
-import React, { useState, useEffect } from 'react';
-import { Dimmer, Loader, Segment } from 'semantic-ui-react';
-import { Redirect } from 'react-router-dom';
-import callApi from './callApi';
-import useInterval from './interval';
-
-const startCheck = async (applicantId) => {
-  return await callApi('POST', process.env.REACT_APP_BACKEND_URL, '/api/check', { applicantId }).then(result => {
-    return result.id;
-  });
-};
-
-const checkStatus = async (checkId) => {
-  return await callApi('POST', process.env.REACT_APP_BACKEND_URL, '/api/status', { checkId }).then(result => {
-    return result;
-  });
-};
-
-const updateUser = async (applicantId, checkResult) => {
-  return await callApi('POST', process.env.REACT_APP_BACKEND_URL, '/api/update', { applicantId, checkResult }).then(result => {
-    return result;
-  });
-};
-
-const Verifying = (props) => {
-  const [verifyState, setVerifyState] = useState({
-    applicant: '',
-    checkId: '',
-    status: 'start',
-    isComplete: undefined,
-  });
-
-  const { authState, oktaAuth } = useOktaAuth();
-  const [userInfo, setUserInfo] = useState(null);
-
-  useEffect(() => {
-    if (!authState.isAuthenticated) {
-      // When user isn't authenticated, forget any user info
-      setUserInfo(null);
-    } else {
-      oktaAuth.getUser().then((info) => {
-        setUserInfo(info);
-      });
-    }
-  }, [authState, oktaAuth]); // Update if authState changes
-
-
-  useEffect(() => {
-    if (verifyState.status === 'start') {
-      const app = props.location.state.applicant;
-      const asyncCheck = async () => {
-        const check = await startCheck(app);
-        setVerifyState(prevState => ({
-          ...prevState,
-          applicant: app,
-          checkId: check,
-          status: 'in_progress',
-          isComplete: false,
-        }));
-      }
-      asyncCheck();
-    }
-  }, [verifyState, props.location.state.applicant]);
-
-  useInterval(() => {
-    if (!verifyState.isComplete && verifyState.isComplete !== undefined) {
-      const asyncStatus = async () => {
-        var currentStatus = await checkStatus(verifyState.checkId);
-        if (currentStatus.checkStatus === 'complete') {
-          updateUser(verifyState.applicant, currentStatus.checkResult);
-          setVerifyState(prevState => ({
-            ...prevState,
-            status: 'complete',
-            isComplete: true,
-          }));
-        }
-      }
-      asyncStatus();
-    }
-  }, !verifyState.isComplete ? 10000 : null);
-
-  if (verifyState.status === 'in_progress' || verifyState.status === 'start') {
-    return (
-      <div style={{height: '300px'}}>
-        <Segment placeholder>
-          <Dimmer active inverted>
-            <Loader inverted size="big" content="Verifying" />
-          </Dimmer>
-        </Segment>
-      </div>
-    );
-  };
-
-  return <Redirect to={{ pathname: '/verified' }} />;
-}
-
-export default Verifying
-````
-This page will create the initial check after the SDK experience is complete. It will then poll the check endpoint from our backend to see when the status has changed to clear or consider, intoning that the IDV process is done with these results. We are not doing any result checking in this example app, but you will be able to see the results of the IDV process using the profile page.
-
-Lastly we will create the Verified.jsx page. This page will only be accessible if the user has completed IDV and the okta user `id_token` has been refreshed and contains the onfidoIdvStatus claim with a value of complete.
-
-````javascript
-import React, { useState, useEffect } from 'react';
-import { useOktaAuth } from '@okta/okta-react';
-import { useHistory } from 'react-router-dom';
-import { Header, Button } from 'semantic-ui-react';
-
-const Verified = () => {
-  const history = useHistory();
-  const { authState, oktaAuth } = useOktaAuth();
-  const [userInfo, setUserInfo] = useState(null);
-
-  useEffect(() => {
-    if (!authState.isAuthenticated) {
-      // When user isn't authenticated, forget any user info
-      setUserInfo(null);
-    } else {
-      oktaAuth.getUser().then((info) => {
-        setUserInfo(info);
-      });
-    }
-  }, [authState, oktaAuth]); // Update if authState changes
-
-  const profile = () => {
-    history.push('/profile');
-  };
-
-  const verify = () => {
-    history.push('/idv');
-  };
-
-  if (!userInfo.onfidoIdvStatus || userInfo.onfidoIdvStatus === '') {
-    return (
-      <div>
-        <Header as="h1">
-          Not Verified!
-        </Header>
-        <p> Your identity has not been verified! You must verify your identity before you can access this page.</p>
-        <Button id="idv-button" primary onClick={verify}>Verify Identity</Button>
-      </div>
-    )
+    })
+    setOnfidoInstance(instance)
+    setLoading(false)
   }
-
-  return (
-    <div>
-      <Header as="h1">
-        Identity Verified!
-      </Header>
-      <p>You have successfully verified your Identity! You can click on the profile button below to see your profile with IDV status.</p>
-      <Button id="profile-button" primary onClick={profile}>View Profile</Button>
-    </div>
-  )
-};
-
-export default Verified
 ````
+This can be edited to meet the use case you wish to achieve as documented here: https://github.com/onfido/onfido-sdk-ui#customising-the-sdk
+
 To map all of this together we will need to modify the App.jsx to include our new pages as secure routes. Use the following code to do so: 
 
 ````javascript
@@ -825,7 +440,7 @@ export default {
   }
 };
 ````
-Then create a .env file in the root of the frontend folder that looks like the following:
+Then create a `testenv` file in the root of the project folder that looks like the following:
 
 ````bash
 CLIENT_ID=0000000000000000

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Dimmer, Loader, Segment } from 'semantic-ui-react';
+import { useOktaAuth } from '@okta/okta-react';
 import { Redirect } from 'react-router-dom';
 import callApi from './callApi';
 import useInterval from './interval';
@@ -16,8 +17,8 @@ const checkStatus = async (checkId) => {
   });
 };
 
-const updateUser = async (applicantId, checkResult) => {
-  return await callApi('POST', process.env.REACT_APP_BACKEND_URL, '/api/update', { applicantId, checkResult }).then(result => {
+const updateUser = async (user, checkResult) => {
+  return await callApi('POST', process.env.REACT_APP_BACKEND_URL, '/api/update', { user, checkResult }).then(result => {
     return result;
   });
 };
@@ -67,7 +68,7 @@ const Verifying = (props) => {
       const asyncStatus = async () => {
         var currentStatus = await checkStatus(verifyState.checkId);
         if (currentStatus.checkStatus === 'complete') {
-          updateUser(verifyState.applicant, currentStatus.checkResult);
+          updateUser(userInfo, currentStatus.checkResult);
           setVerifyState(prevState => ({
             ...prevState,
             status: 'complete',

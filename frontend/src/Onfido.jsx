@@ -18,41 +18,10 @@ const getSDKToken = async (applicantId) => {
 };
 
 const Onfido = () => {
-  const { authState, oktaAuth } = useOktaAuth();
-  const [userInfo, setUserInfo] = useState(null);
 
-  useEffect(() => {
-    if (!authState.isAuthenticated) {
-      // When user isn't authenticated, forget any user info
-      setUserInfo(null);
-    } else {
-      oktaAuth.getUser().then((info) => {
-        setUserInfo(info);
-      });
-    }
-  }, [authState, oktaAuth]); // Update if authState changes
-
-  const [applicantId, setApplicantId] = useState(null);
-  useEffect(() => {
-    let applicantId;
-    (async function asyncFetchApplicant() {
-      applicantId = await createApplicant(userInfo.given_name, userInfo.family_name, userInfo.email);
-      setApplicantId(applicantId);
-    })();
-  });
-
-  const [sdkToken, setSDKToken] = useState(null);
-  useEffect(() => {
-    let sdkToken;
-    (async function asyncFetchSDKToken() {
-      sdkToken = await getSDKToken(applicantId);
-      setSDKToken(sdkToken);
-    })();
-  });
-
-  const [handler, setHandler] = useState(null);
-  setOnfidoOptions = (sdkToken) => {
-    return {
+  const initOnfido = async (sdkToken) => {
+    setLoading(true)
+    const instance = init({
       token: sdkToken,
       containerId: 'onfido-mount',
       useModel: false,
@@ -99,10 +68,53 @@ const Onfido = () => {
       onError: (error) => {
         setHandler({ error: error, complete: false, documentData: undefined });
       }
-    };
-  };
+    })
+    setOnfidoInstance(instance)
+    setLoading(false)
+  }
 
-  if (sdkToken === '') {
+  const { authState, oktaAuth } = useOktaAuth();
+  const [userInfo, setUserInfo] = useState(null);
+  const [applicantId, setApplicantId] = useState(null);
+  const [sdkToken, setSDKToken] = useState(null);
+  const [handler, setHandler] = useState({ complete: false });
+  const [loading, setLoading] = useState(false)
+  const [onfidoInstance, setOnfidoInstance] = useState(null)
+  useEffect(() => {
+    if (!authState.isAuthenticated) {
+      // When user isn't authenticated, forget any user info
+      setUserInfo(null);
+    } else {
+      oktaAuth.getUser().then((info) => {
+        setUserInfo(info);
+        if (sdkToken === null) {
+          let tempApplicantId;
+          (async function asyncFetchApplicant() {
+            tempApplicantId = await createApplicant(info.email, info.given_name, info.family_name);
+            setApplicantId(tempApplicantId);
+            let tempSdkToken;
+            (async function asyncFetchSDKToken() {
+              tempSdkToken = await getSDKToken(tempApplicantId);
+              setSDKToken(tempSdkToken.sdkToken);
+            })();
+          })();
+        } else {
+
+        }
+      });
+    }
+  }, [authState, oktaAuth]); // Update if authState changes
+
+  useEffect(() => {
+    if (sdkToken !== null && onfidoInstance === null) {
+    initOnfido(sdkToken);
+    return () => {
+      onfidoInstance && onfidoInstance.tearDown()
+    }
+  }
+  }, [sdkToken, onfidoInstance])
+ 
+  if (sdkToken === '' || sdkToken === null) {
     return (
       <div>
         <p>Fetching user profile...</p>
@@ -117,15 +129,15 @@ const Onfido = () => {
           <p> Error! You have encountered an unexpected error!</p>
           <p> {handler.error} </p>
         </div>
+        
       );
     } else {
-      init(setOnfidoOptions(sdkToken));
       return (
-        <div id="onfido-mount" style={{ display: 'flex'}}></div>
+        <div id="onfido-mount" name="onfido-mount" style={{ display: 'flex'}}>{loading && <div>Loading...</div>}</div>
       );
     }
   } else {
-    return <Redirect to={{ pathname: '/verifying', state: { applicant: applicantId, data: documentData }}} />
+    return <Redirect to={{ pathname: '/verifying', state: { applicant: applicantId, data: handler.documentData }}} />
   };
 };
 

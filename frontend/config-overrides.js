@@ -26,6 +26,7 @@ const env = {};
   'ISSUER',
   'CLIENT_ID',
   'OKTA_TESTING_DISABLEHTTPSCHECK',
+  'REACT_APP_BACKEND_URL',
 ].forEach((key) => {
   if (!process.env[key]) {
     throw new Error(`Environment variable ${key} must be set. See README.md`);

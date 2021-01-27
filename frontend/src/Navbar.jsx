@@ -34,7 +34,7 @@ const Navbar = () => {
           {authState.isAuthenticated && (
           <Menu.Item id="messages-button">
             <Icon name="mail outline" />
-            <Link to="/messages">Messages</Link>
+            <Link to="/protected">Protected</Link>
           </Menu.Item>
           )}
           {authState.isAuthenticated && (

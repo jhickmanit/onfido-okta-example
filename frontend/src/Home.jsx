@@ -55,7 +55,7 @@ const Home = () => {
   return (
     <div>
       <div>
-        <Header as="h1">PKCE Flow w/ Custom Login</Header>
+        <Header as="h1">Onfido + Okta Example App</Header>
 
         { authState.isAuthenticated && !userInfo
         && <div>Loading user information...</div>}
@@ -78,16 +78,10 @@ const Home = () => {
           </p>
           <h3>Next Steps</h3>
           <p>Currently this application is a stand-alone front end application.  At this point you can use the access token to authenticate yourself against resource servers that you control.</p>
-          <p>This sample is designed to work with one of our resource server examples.  To see access token authentication in action, please download one of these resource server examples:</p>
-          <ul>
-            {resourceServerExamples.map((example) => <li key={example.url}><a href={example.url}>{example.label}</a></li>)}
-          </ul>
-          <p>
-            Once you have downloaded and started the example resource server, you can visit the
-            <a href="/messages">My Messages</a>
-            {' '}
-            page to see the authentication process in action.
-          </p>
+          <p>The application sets up a "Protected" endpoint which requires the user to go through Onfido Identity Verification to prove their Identity. You can click the protected navbar item or use the link below:</p>
+          {' '}
+          <p><a href="/protected">Protected Resource</a></p>    
+          {' '}      
         </div>
         )}
 

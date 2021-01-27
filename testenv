@@ -1,0 +1,3 @@
+ISSUER=https://onfidosedemo.oktapreview.com
+CLIENT_ID=0oa1944cqb4V9TElW0x7
+REACT_APP_BACKEND_URL=http://localhost:3001
