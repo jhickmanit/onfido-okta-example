@@ -21,7 +21,7 @@ Login redirect URIs | http://localhost:3000/login/callback
 Logout redirect URIs | http://localhost:3000/login
 Allowed grant types | Authorization Code
 
-> Note: CORS is automatically enabled for the granted login redirect URIs.
+> Note: CORS is automatically enabled for the granted login redirect URIs, but please verify this in Security > API > Trusted Origin. 
 
 ### Create an Onfido API Token
 * Log into the Onfido Dashboard, select Developers tab from the side menu, select Tokens, and Generate API Token. 
@@ -29,7 +29,7 @@ Allowed grant types | Authorization Code
 * Save the API Token generated in a secure location. You will not be able to retrieve this token value after exiting the pop-up window.
 
 ### Extend Okta User Profile
-Create the following profile attributes:
+Create the following profile attributes in both the default Okta profile and the OIDC Single Page App created above:
 * Onfido IDV Status
   - Data Type: string
   - Display Name: Onfido IDV Status
