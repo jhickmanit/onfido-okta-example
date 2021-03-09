@@ -1,4 +1,4 @@
-# Onfido and Okta Identity Verification Integration
+# Onfido and Okta Identity Verification Example
 This guide will walk you through setting up a custom application using Okta’s Sign-In Widget and Onfido’s SDK as an example of how Onfido’s Identity Verification (IDV) can be used with Okta to create a higher trust model around privileged application features.
 
 ## Pre-Requisites
