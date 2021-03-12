@@ -29,6 +29,7 @@ const Verifying = (props) => {
     checkId: '',
     status: 'start',
     isComplete: undefined,
+    result: '',
   });
 
   const { authState, oktaAuth } = useOktaAuth();
@@ -73,6 +74,7 @@ const Verifying = (props) => {
             ...prevState,
             status: 'complete',
             isComplete: true,
+            result: currentStatus.checkResult,
           }));
         }
       }
@@ -92,7 +94,7 @@ const Verifying = (props) => {
     );
   };
 
-  return <Redirect to={{ pathname: '/verified' }} />;
+  return <Redirect to={{ pathname: '/verified', state: { result: verifyState.result } }} />;
 }
 
 export default Verifying

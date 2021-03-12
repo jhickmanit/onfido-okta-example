@@ -35,25 +35,27 @@ const Verified = () => {
     )
   }
 
-  if (userInfo['onfidoIdvStatus'] === null || userInfo['onfidoIdvStatus'] === undefined || userInfo['onfidoIdvStatus'] !== 'clear') {
+  const result = this.props.location.state.result;
+
+  if (result === 'clear' || userInfo['onfidoIdvStatus'] === 'clear') {
     return (
       <div>
         <Header as="h1">
-          Not Verified!
+          Identity Verified!
         </Header>
-        <p> Your identity has not been verified or failed to be verified! You must verify your identity before you can access this page, click below to try again.</p>
-        <Button id="idv-button" primary onClick={verify}>Verify Identity</Button>
+        <p>You have successfully verified your Identity! You can click on the profile button below to see your profile with IDV status.</p>
+        <Button id="profile-button" primary onClick={profile}>View Profile</Button>
       </div>
     )
   }
-
+  
   return (
     <div>
       <Header as="h1">
-        Identity Verified!
+        Not Verified!
       </Header>
-      <p>You have successfully verified your Identity! You can click on the profile button below to see your profile with IDV status.</p>
-      <Button id="profile-button" primary onClick={profile}>View Profile</Button>
+      <p> Your identity has not been verified or failed to be verified! You must verify your identity before you can access this page, click below to try again.</p>
+      <Button id="idv-button" primary onClick={verify}>Verify Identity</Button>
     </div>
   )
 };
