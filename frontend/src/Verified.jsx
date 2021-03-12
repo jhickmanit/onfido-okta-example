@@ -3,7 +3,7 @@ import { useOktaAuth } from '@okta/okta-react';
 import { useHistory } from 'react-router-dom';
 import { Header, Button } from 'semantic-ui-react';
 
-const Verified = () => {
+const Verified = (props) => {
   const history = useHistory();
   const { authState, oktaAuth } = useOktaAuth();
   const [userInfo, setUserInfo] = useState(null);
@@ -35,7 +35,7 @@ const Verified = () => {
     )
   }
 
-  const result = this.props.location.state.result;
+  const result = props.location.state.result;
 
   if (result === 'clear' || userInfo['onfidoIdvStatus'] === 'clear') {
     return (
